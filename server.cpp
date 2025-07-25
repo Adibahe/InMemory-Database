@@ -23,14 +23,14 @@ void msg(const std::string &message){
 
 void len_den(const int &conn_fd){
     //recieve a msg
-    char recv_buf[] = {};
+    char recv_buf[64] = {};
     ssize_t n = recv(conn_fd, recv_buf, sizeof(recv_buf) - 1, 0);
     if(n < 0){msg("recv() error: recieving error");}
 
-    std::cout << "Client says: " << recv_buf;
+    std::cout << "Client says: " << recv_buf << std::endl;
 
-    char send_buf[] = "Hello!";
-    send(conn_fd, send_buf, sizeof(send_buf), 0);
+    char send_buf[] = "World!";
+    send(conn_fd, send_buf, sizeof(send_buf) - 1, 0);
 }
 
 int main(){
@@ -80,5 +80,5 @@ int main(){
         close(conn_fd);
     }
 
-    return 1;
+    return 0;
 }
