@@ -21,16 +21,17 @@ void msg(const std::string &message){
     std::cerr << message;
 }
 
-void len_den(const int &conn_fd){
+int32_t len_den(const int &conn_fd){
     //recieve a msg
     char recv_buf[64] = {};
     ssize_t n = recv(conn_fd, recv_buf, sizeof(recv_buf) - 1, 0);
-    if(n < 0){msg("recv() error: recieving error");}
+    if(n <= 0){ return -1;}
 
-    std::cout << "Client says: " << recv_buf << std::endl;
-
+    std::cout << n << std::endl<< "Client says: " << recv_buf << std::endl;
+    
     char send_buf[] = "World!";
     send(conn_fd, send_buf, sizeof(send_buf) - 1, 0);
+    return 0;
 }
 
 int main(){
@@ -75,8 +76,10 @@ int main(){
         if(conn_fd < 0) continue;
         else std::clog << "accepted by client :" << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << std::endl;
 
-        len_den(conn_fd); // just reads and writes for testing purposes
-
+        while(true){
+            err_code = len_den(conn_fd); // just reads and writes for testing purposes
+            if(err_code) break;
+        }
         close(conn_fd);
     }
 
