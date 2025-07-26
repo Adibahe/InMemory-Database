@@ -1,6 +1,5 @@
 #include <iostream>
 #include <sys/socket.h>
-#include <unistd.h>
 #include <stdint.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -9,6 +8,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include "readwrite.h"
 
 void die(const std::string &msg){
     int error = errno;

@@ -1,6 +1,6 @@
+#include "readwrite.h"
 #include <iostream>
 #include <sys/socket.h>
-#include <unistd.h>
 #include <stdint.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -10,28 +10,56 @@
 #include <stdio.h>
 #include <errno.h>
 
+const size_t max_msg = 4100; // can carry a max data of 4KB
 
 void die(const std::string &msg){
     int error = errno;
-    std::cerr << "Error:" << error << strerror(errno) << ":"<< msg;
+    std::cerr << "Error:" << error << strerror(errno) << ":"<< msg << std::endl;
     abort();
 }
 
 void msg(const std::string &message){
-    std::cerr << message;
+    std::cerr << message << std::endl;
 }
 
 int32_t len_den(const int &conn_fd){
     //recieve a msg
-    char recv_buf[64] = {};
-    ssize_t n = recv(conn_fd, recv_buf, sizeof(recv_buf) - 1, 0);
-    if(n <= 0){ return -1;}
-
-    std::cout << n << std::endl<< "Client says: " << recv_buf << std::endl;
+    char recv_buf[4 + max_msg];
     
-    char send_buf[] = "World!";
-    send(conn_fd, send_buf, sizeof(send_buf) - 1, 0);
-    return 0;
+    errno = 0;
+
+    int32_t err = ReadWrite::readfull( conn_fd, recv_buf, 4);
+    if(err < 0){
+        msg(errno == 0 ? "EOF" : "Read() Error ");
+        return err;
+    }
+
+    uint32_t len;
+    memcpy(&len, recv_buf, 4); // get len of msg
+
+    if(len > max_msg){
+        msg("too long message");
+        return -1;
+    }
+
+    // reads msg
+    err = ReadWrite::readfull(conn_fd, &recv_buf[4], len);
+    if(err < 0){
+        msg("read() error");
+        return err;
+    }
+
+    std::cout << std::endl<< "Client says: " << recv_buf[4] << std::endl;
+
+    
+    char reply[] = "World!";
+    char send_buf[4 + sizeof(reply)];
+
+    len = (uint32_t)strlen(reply);
+    memcpy(send_buf , &len, 4);
+    memcpy(&send_buf[4], reply, len);
+
+    return ReadWrite :: writefull(conn_fd, send_buf, 4);
 }
 
 int main(){
