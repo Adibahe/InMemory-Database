@@ -10,14 +10,64 @@
 #include <errno.h>
 #include "readwrite.h"
 
+const size_t max_size = 4096;
+int32_t err;
+
 void die(const std::string &msg){
     int error = errno;
-    std::cerr << "Error:" << error << strerror(errno) << ":"<< msg;
+    std::cerr << "Error:" << error << strerror(errno) << ":"<< msg << std::endl;
     abort();
 }
 
 void msg(const std::string &message){
-    std::cerr << message;
+    std::cerr << message << std::endl;
+}
+
+static int32_t query(const int &fd, const char *message){
+
+    uint32_t len = (uint32_t)strlen(message);
+    if(len > max_size) return -1;
+    char write_buf[4 + max_size];
+
+    if(len > max_size) {
+        msg("write() : too long message");
+        return -1;
+    }
+    // creating a write byte stream msg
+    memcpy(write_buf, &len, 4);
+    memcpy(&write_buf[4], message, len);
+
+    // writing all
+    err = ReadWrite::writefull(fd, write_buf, 4 + len);
+    if(err){
+        msg("write() error");
+        return err;
+    }
+
+    
+    //reading all byte stream
+    char read_buf[4 + max_size + 1];
+    errno = 0;
+    err = ReadWrite::readfull(fd, read_buf, 4); //getting length of message
+    if(err) {
+        msg(err == 0 ? "EOF":"read() error"); 
+        return err;
+    }
+
+    memcpy(&len, read_buf, 4);
+    if(len > max_size){
+        msg("read() : too long message");
+        return -1;
+    }
+    err = ReadWrite::readfull(fd, &read_buf[4], len);
+    if(err) {
+        msg("read() error");
+        return err;
+    }
+
+    std::cout << "Server says: " << &read_buf[4] << std::endl;
+
+    return 0;
 }
 
 int main(){
@@ -35,18 +85,19 @@ int main(){
 
     socklen_t my_addrlen = sizeof(addr);
     int err_code = connect(fd, (struct sockaddr *) &addr, my_addrlen);
-    if(err_code < 0){die("connect()");}
+    if(err_code < 0){die("connect() error");}
     else {std::clog << "connected "<< std::endl;}
 
-    // writting and reading msg's
-    char send_buf[] = "Hello";
-    ssize_t code = send(fd, send_buf, sizeof(send_buf) - 1, 0);
-    if(code < 0) {die("send()");}
+    err = query(fd, "Hello1");
+    if(err){
+        goto DONE;
+    }
+    err = query(fd, "Hello2");
+    if(err){
+        goto DONE;
+    }
 
-    char recv_buf[64] = {};
-    code = recv(fd, recv_buf, sizeof(recv_buf) - 1, 0);
-    if(code < 0) {die("recv()");}
-    std::cout << "server says: " << recv_buf << std::endl;
-
+DONE:
+    close(fd);
     return 0;
 }

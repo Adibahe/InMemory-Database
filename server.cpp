@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-const size_t max_msg = 4100; // can carry a max data of 4KB
+const size_t max_msg = 4096; // can carry a max data of 4KB
 
 void die(const std::string &msg){
     int error = errno;
@@ -22,19 +22,19 @@ void msg(const std::string &message){
     std::cerr << message << std::endl;
 }
 
-int32_t len_den(const int &conn_fd){
+static int32_t len_den(const int &conn_fd){
     //recieve a msg
     char recv_buf[4 + max_msg];
     
     errno = 0;
 
     int32_t err = ReadWrite::readfull( conn_fd, recv_buf, 4);
-    if(err < 0){
-        msg(errno == 0 ? "EOF" : "Read() Error ");
+    if(err){
+        msg(errno == 0 ? "EOF" : "read() Error ");
         return err;
     }
 
-    uint32_t len;
+    uint32_t len = 0;
     memcpy(&len, recv_buf, 4); // get len of msg
 
     if(len > max_msg){
@@ -49,17 +49,23 @@ int32_t len_den(const int &conn_fd){
         return err;
     }
 
-    std::cout << std::endl<< "Client says: " << recv_buf[4] << std::endl;
+    std::cout << std::endl<< "Client says: " << &recv_buf[4] << std::endl;
 
     
     char reply[] = "World!";
-    char send_buf[4 + sizeof(reply)];
 
     len = (uint32_t)strlen(reply);
+    char send_buf[4 + sizeof(reply)];
+
     memcpy(send_buf , &len, 4);
     memcpy(&send_buf[4], reply, len);
 
-    return ReadWrite :: writefull(conn_fd, send_buf, 4);
+    err = ReadWrite :: writefull(conn_fd, send_buf, 4 + len);
+    if(err){
+        msg("write() error");
+        return err;
+    }
+    return 0;
 }
 
 int main(){
@@ -106,7 +112,9 @@ int main(){
 
         while(true){
             err_code = len_den(conn_fd); // just reads and writes for testing purposes
-            if(err_code) break;
+            if(err_code) {
+                break;
+            }
         }
         close(conn_fd);
     }

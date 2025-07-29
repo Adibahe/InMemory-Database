@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <unistd.h>
+#include <assert.h>
 
 class ReadWrite{
 
@@ -12,9 +13,10 @@ class ReadWrite{
         
         // used to read byte stream with expected size
         while(buf_size > 0){
-            ssize_t n = read(conn_fd, &buf, buf_size);
+            ssize_t n = read(conn_fd, buf, buf_size);
             if(n <= 0) return -1; //error in reading
 
+            assert((size_t)n <= buf_size);
             buf_size -= (size_t)n;
             buf += (size_t)n;
         }
@@ -25,9 +27,10 @@ class ReadWrite{
     
         // used to write byte stream with expected size
         while(buf_size > 0){
-            ssize_t n = write(conn_fd, &buf, buf_size);
+            ssize_t n = write(conn_fd, buf, buf_size);
             if(n <= 0) return -1; //error in reading
 
+            assert((size_t)n <= buf_size);
             buf_size -= (size_t)n;
             buf += (size_t)n;
         }
