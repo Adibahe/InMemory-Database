@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <stdint.h>
+#include "structures.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
