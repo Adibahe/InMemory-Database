@@ -6,21 +6,11 @@
 #include <arpa/inet.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include "error_handling.h"
 
 const size_t max_msg = 4096; // can carry a max data of 4KB
-
-void die(const std::string &msg){
-    int error = errno;
-    std::cerr << "Error:" << error << strerror(errno) << ":"<< msg << std::endl;
-    abort();
-}
-
-void msg(const std::string &message){
-    std::cerr << message << std::endl;
-}
 
 static int32_t len_den(const int &conn_fd){
     //recieve a msg
@@ -30,7 +20,7 @@ static int32_t len_den(const int &conn_fd){
 
     int32_t err = ReadWrite::readfull( conn_fd, recv_buf, 4);
     if(err){
-        msg(errno == 0 ? "EOF" : "read() Error ");
+        errors :: msg(errno == 0 ? "EOF" : "read() Error ");
         return err;
     }
 
@@ -38,14 +28,14 @@ static int32_t len_den(const int &conn_fd){
     memcpy(&len, recv_buf, 4); // get len of msg
 
     if(len > max_msg){
-        msg("too long message");
+        errors :: msg("too long message");
         return -1;
     }
 
     // reads msg
     err = ReadWrite::readfull(conn_fd, &recv_buf[4], len);
     if(err < 0){
-        msg("read() error");
+        errors :: msg("read() error");
         return err;
     }
 
@@ -62,7 +52,7 @@ static int32_t len_den(const int &conn_fd){
 
     err = ReadWrite :: writefull(conn_fd, send_buf, 4 + len);
     if(err){
-        msg("write() error");
+        errors :: msg("write() error");
         return err;
     }
     return 0;
@@ -91,11 +81,11 @@ int main(){
     err_code = bind(fd,(const struct sockaddr*) &addr, sizeof(addr));
     
     if(err_code){
-        die("bind()");
+        errors :: die("bind()");
     }
 
     err_code = listen(fd, SOMAXCONN);
-    if(err_code) {die("listen()");}
+    if(err_code) {errors :: die("listen()");}
     else {
         socklen_t using_addrlen = sizeof(using_addr);
         getsockname(fd, (struct sockaddr *) &using_addr, &using_addrlen);
