@@ -60,10 +60,9 @@ static int32_t len_den(const int &conn_fd){
     return 0;
 }
 
-static void set_fd_nb(int fd){
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+static bool isItParsable(Connection *conn){
+    
 }
-
 
 int main(){
 
@@ -127,7 +126,7 @@ int main(){
         if(err < 0) errors :: die("error : Poll()");
 
         if(candidates[0].revents){
-            Connection *conn = Myaccept(fd);
+            Connection *conn = ReadWrite :: Myaccept(fd);
             if(*conn){
                 if(fdconns.size() <= (size_t)conn -> fd){
                     fdconns.resize(conn -> fd + 1);
