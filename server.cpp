@@ -14,51 +14,51 @@
 
 const size_t max_msg = 4096; // can carry a max data of 4KB
 
-static int32_t len_den(const int &conn_fd){
-    //recieve a msg
-    char recv_buf[4 + max_msg];
+// static int32_t len_den(const int &conn_fd){
+//     //recieve a msg
+//     char recv_buf[4 + max_msg];
     
-    errno = 0;
+//     errno = 0;
 
-    int32_t err = ReadWrite::readfull( conn_fd, recv_buf, 4);
-    if(err){
-        errors :: msg(errno == 0 ? "EOF" : "read() Error ");
-        return err;
-    }
+//     int32_t err = ReadWrite::readfull( conn_fd, recv_buf, 4);
+//     if(err){
+//         errors :: msg(errno == 0 ? "EOF" : "read() Error ");
+//         return err;
+//     }
 
-    uint32_t len = 0;
-    memcpy(&len, recv_buf, 4); // get len of msg
+//     uint32_t len = 0;
+//     memcpy(&len, recv_buf, 4); // get len of msg
 
-    if(len > max_msg){
-        errors :: msg("too long message");
-        return -1;
-    }
+//     if(len > max_msg){
+//         errors :: msg("too long message");
+//         return -1;
+//     }
 
-    // reads msg
-    err = ReadWrite::readfull(conn_fd, &recv_buf[4], len);
-    if(err < 0){
-        errors :: msg("read() error");
-        return err;
-    }
+//     // reads msg
+//     err = ReadWrite::readfull(conn_fd, &recv_buf[4], len);
+//     if(err < 0){
+//         errors :: msg("read() error");
+//         return err;
+//     }
 
-    std::cout << std::endl<< "Client says: " << &recv_buf[4] << std::endl;
+//     std::cout << std::endl<< "Client says: " << &recv_buf[4] << std::endl;
 
     
-    char reply[] = "World!";
+//     char reply[] = "World!";
 
-    len = (uint32_t)strlen(reply);
-    char send_buf[4 + sizeof(reply)];
+//     len = (uint32_t)strlen(reply);
+//     char send_buf[4 + sizeof(reply)];
 
-    memcpy(send_buf , &len, 4);
-    memcpy(&send_buf[4], reply, len);
+//     memcpy(send_buf , &len, 4);
+//     memcpy(&send_buf[4], reply, len);
 
-    err = ReadWrite :: writefull(conn_fd, send_buf, 4 + len);
-    if(err){
-        errors :: msg("write() error");
-        return err;
-    }
-    return 0;
-}
+//     err = ReadWrite :: writefull(conn_fd, send_buf, 4 + len);
+//     if(err){
+//         errors :: msg("write() error");
+//         return err;
+//     }
+//     return 0;
+// }
 
 
 
@@ -125,7 +125,7 @@ int main(){
 
         if(candidates[0].revents){
             Connection *conn = ReadWrite :: Myaccept(fd);
-            if(*conn){
+            if(conn){
                 if(fdconns.size() <= (size_t)conn -> fd){
                     fdconns.resize(conn -> fd + 1);
                 }
@@ -138,7 +138,7 @@ int main(){
             uint32_t ready = candidates[i].revents;
 
             Connection *conn = fdconns[candidates[i].fd];
-            if(ready & POLLIN) Myread(conn);
+            if(ready & POLLIN) ReadWrite::Myread(conn);
             if(ready & POLLOUT) Mywrite(conn);
             if((ready & POLLERR) ||(conn -> want_close)){
                 close(conn -> fd);
