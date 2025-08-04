@@ -7,7 +7,29 @@
 #include "structures.h"
 #include <fcntl.h>
 
+const size_t max_msg = 4096;
 
+static bool isItParsable(Connection *conn){
+    size_t len;
+    if(conn -> incoming_buffer.size() < 4){
+        return false; // read more from kernels buffer
+    }
+    memcpy(&len, conn -> incoming_buffer.data(), 4);
+
+    if(len > max_msg){
+        conn -> want_close = true;
+        return false;
+    }
+
+    if(4 + len > conn -> incoming_buffer.size()) return false; // want to read more from kernel buffer
+
+    // writting the whole msg to client
+    conn -> outgoing_buffer.insert(conn -> outgoing_buffer.end(), &len, &len + 4);
+    conn -> outgoing_buffer.insert(conn -> outgoing_buffer.end(), &conn -> incoming_buffer[4],&conn -> incoming_buffer[4] + len);
+
+    conn -> incoming_buffer.erase(conn -> incoming_buffer.begin(), conn -> incoming_buffer.begin() + 4 + len);
+    return true;
+}
 
 static void set_fd_nb(int fd){
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
@@ -22,7 +44,7 @@ static void Myread(Connection *conn){
     }
     // insert the r_buf in incoming_buf
     conn->incoming_buffer.insert(conn -> incoming_buffer.end(), r_buf, r_buf + size);
-
+    isItParsable(conn);
 }
 
 class ReadWrite{

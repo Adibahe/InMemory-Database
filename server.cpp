@@ -60,9 +60,7 @@ static int32_t len_den(const int &conn_fd){
     return 0;
 }
 
-static bool isItParsable(Connection *conn){
-    
-}
+
 
 int main(){
 
