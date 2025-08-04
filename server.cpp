@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include "error_handling.h"
+#include <poll.h>
+#include <fcntl.h>
 
 const size_t max_msg = 4096; // can carry a max data of 4KB
 
@@ -58,6 +60,11 @@ static int32_t len_den(const int &conn_fd){
     return 0;
 }
 
+static void set_fd_nb(int fd){
+    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+}
+
+
 int main(){
 
     int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -92,22 +99,75 @@ int main(){
         std::clog << "listing on :" << inet_ntoa(using_addr.sin_addr) << ":" << ntohs(using_addr.sin_port) << std::endl;}
 
     // accepting connection
+    
+    std :: vector< Connection *> fdconns; // handling connections
+    std :: vector<struct pollfd> candidates;
+    
+    set_fd_nb(fd);
+
     while(true){
-        struct sockaddr_in client_addr = {};
-        socklen_t client_addrlen = sizeof(client_addr);
-        int conn_fd = accept(fd, (struct sockaddr*) &client_addr, &client_addrlen);
+        candidates.clear();
+        // adding listening port in pollfd
+        struct pollfd listening_fd =  {fd, POLLIN, 0};
+        candidates.push_back(listening_fd);
 
-        if(conn_fd < 0) continue;
-        else std::clog << "accepted by client :" << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << std::endl;
+        for(Connection *conn : fdconns){
+            if(!conn) continue;
 
-        while(true){
-            err_code = len_den(conn_fd); // just reads and writes for testing purposes
-            if(err_code) {
-                break;
+            struct pollfd temp = {conn -> fd, POLLERR, 0};
+            if(conn -> want_read) temp.events |= POLLIN;
+            if(conn -> want_write) temp.events |= POLLOUT;
+
+            candidates.push_back(temp);
+        }
+
+        // checking readiness
+        int err = poll(candidates.data(), (nfds_t)candidates.size(), -1);
+        if(err < 0 && errno == EINTR) continue;
+        if(err < 0) errors :: die("error : Poll()");
+
+        if(candidates[0].revents){
+            Connection *conn = Myaccept(fd);
+            if(*conn){
+                if(fdconns.size() <= (size_t)conn -> fd){
+                    fdconns.resize(conn -> fd + 1);
+                }
+                fdconns[conn -> fd] = conn;
+            }
+            
+        }
+        // if fd's are ready handle them for particular tasks
+        for(size_t i = 1; i < candidates.size(); i++ ){
+            uint32_t ready = candidates[i].revents;
+
+            Connection *conn = fdconns[candidates[i].fd];
+            if(ready & POLLIN) Myread(conn);
+            if(ready & POLLOUT) Mywrite(conn);
+            if((ready & POLLERR) ||(conn -> want_close)){
+                close(conn -> fd);
+                fdconns[conn -> fd] = NULL;
+                delete conn;
             }
         }
-        close(conn_fd);
+
     }
+
+    // while(true){
+    //     struct sockaddr_in client_addr = {};
+    //     socklen_t client_addrlen = sizeof(client_addr);
+    //     int conn_fd = accept(fd, (struct sockaddr*) &client_addr, &client_addrlen);
+
+    //     if(conn_fd < 0) continue;
+    //     else std::clog << "accepted by client :" << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << std::endl;
+
+    //     while(true){
+    //         err_code = len_den(conn_fd); // just reads and writes for testing purposes
+    //         if(err_code) {
+    //             break;
+    //         }
+    //     }
+    //     close(conn_fd);
+    // }
 
     return 0;
 }
