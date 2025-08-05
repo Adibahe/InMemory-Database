@@ -34,21 +34,30 @@ static int32_t query(const int &fd, const char *message){
         errors :: msg("write() error");
         return err;
     }
+    else {
+        errors :: msg("written");
+    }
 
     
     //reading all byte stream
     char read_buf[4 + max_size + 1];
     errno = 0;
     err = ReadWrite::readfull(fd, read_buf, 4); //getting length of message
+    std::cout << "Read len" << std::endl;
     if(err) {
         errors :: msg(err == 0 ? "EOF":"read() error"); 
         return err;
     }
-
+    
+    std::cout << "passed" << std::endl;
     memcpy(&len, read_buf, 4);
     if(len > max_size){
         errors :: msg("read() : too long message");
         return -1;
+    }
+    else{
+        errors::msg("len : ");
+        std::cerr << len << std::endl;
     }
     err = ReadWrite::readfull(fd, &read_buf[4], len);
     if(err) {

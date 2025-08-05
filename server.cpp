@@ -1,18 +1,11 @@
 #include "readwrite.h"
 #include <iostream>
-#include <sys/socket.h>
 #include <stdint.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include "structures.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include "error_handling.h"
 #include <poll.h>
-#include <fcntl.h>
 
-const size_t max_msg = 4096; // can carry a max data of 4KB
 
 // static int32_t len_den(const int &conn_fd){
 //     //recieve a msg
@@ -136,16 +129,18 @@ int main(){
         // if fd's are ready handle them for particular tasks
         for(size_t i = 1; i < candidates.size(); i++ ){
             uint32_t ready = candidates[i].revents;
+            std::cerr << "checking candidates" << std::endl;
 
             Connection *conn = fdconns[candidates[i].fd];
             if(ready & POLLIN) ReadWrite::Myread(conn);
-            if(ready & POLLOUT) Mywrite(conn);
+            if(ready & POLLOUT) ReadWrite::Mywrite(conn);
             if((ready & POLLERR) ||(conn -> want_close)){
                 close(conn -> fd);
                 fdconns[conn -> fd] = NULL;
                 delete conn;
             }
         }
+        std :: clog << "in here" << std::endl;
 
     }
 

@@ -6,6 +6,11 @@
 #include <assert.h>
 #include "structures.h"
 #include <fcntl.h>
+#include <strings.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include "error_handling.h"
+#include <arpa/inet.h>
 
 const size_t max_msg = 4096;
 
@@ -40,7 +45,36 @@ class ReadWrite{
 
     public:
 
+    static int32_t readfull(const int &conn_fd, char * buf, size_t buf_size){
+        
+        // used to read byte stream with expected size
+        while(buf_size > 0){
+            ssize_t n = read(conn_fd, buf, buf_size);
+            if(n <= 0) return -1; //error in reading
+
+            assert((size_t)n <= buf_size);
+            buf_size -= (size_t)n;
+            buf += (size_t)n;
+        }
+        return 0;
+    }
+
+    static int32_t writefull(const int &conn_fd, char * buf, size_t buf_size){
+    
+        // used to write byte stream with expected size
+        while(buf_size > 0){
+            ssize_t n = write(conn_fd, buf, buf_size);
+            if(n <= 0) return -1; //error in reading
+
+            assert((size_t)n <= buf_size);
+            buf_size -= (size_t)n;
+            buf += (size_t)n;
+        }
+        return 0;
+    }
+
     static void Myread(Connection *conn){
+        std :: clog << "in read" << std::endl;
         uint8_t r_buf[64 * 1024]; // a buffer of 64kb
         ssize_t size = read(conn -> fd, r_buf, sizeof(r_buf));
         if(size <= 0){
@@ -50,8 +84,10 @@ class ReadWrite{
         // insert the r_buf in incoming_buf
         conn->incoming_buffer.insert(conn -> incoming_buffer.end(), r_buf, r_buf + size);
         isItParsable(conn);
-
+        std :: clog << "out of parsable" << std::endl;
+        
         if(conn -> outgoing_buffer.size() > 0){
+            std :: clog << "changing response" << std::endl;
             conn -> want_read = false;
             conn -> want_write = true;
         }
@@ -73,7 +109,7 @@ class ReadWrite{
         }
     }
 
-    static Connection* Myaccept(int fd){
+    static Connection *Myaccept(int fd){
         struct sockaddr_in client_addr = {};
         socklen_t addr_len = sizeof(client_addr);
 
@@ -82,12 +118,13 @@ class ReadWrite{
             errors::die("error : accept()");
             return NULL;
         }
+        std::cerr << "accepted :" << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << std::endl;
 
         set_fd_nb(connfd);
-        struct Connection conn = {};
-        conn.fd = connfd;
-        conn.want_read = true;
-        return &conn;
+        Connection *conn = new Connection();
+        conn->fd = connfd;
+        conn->want_read = true;
+        return conn;
     }
 
 };
