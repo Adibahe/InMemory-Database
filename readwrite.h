@@ -50,22 +50,28 @@ class ReadWrite{
         // insert the r_buf in incoming_buf
         conn->incoming_buffer.insert(conn -> incoming_buffer.end(), r_buf, r_buf + size);
         isItParsable(conn);
+
+        if(conn -> outgoing_buffer.size() > 0){
+            conn -> want_read = false;
+            conn -> want_write = true;
+        }
     }
 
+    static void Mywrite(Connection *conn){
+        // assuming the write buffer is fully empty
+        size_t written = write(conn -> fd, &conn -> outgoing_buffer, sizeof(conn -> outgoing_buffer));
+        if(written < 0) {
+            conn -> want_close = true;
+            return ;
+        }
 
-    // static int32_t writefull(const int &conn_fd, char * buf, size_t buf_size){
-    
-    //     // used to write byte stream with expected size
-    //     while(buf_size > 0){
-    //         ssize_t n = write(conn_fd, buf, buf_size);
-    //         if(n <= 0) return -1; //error in reading
+        conn -> outgoing_buffer.erase(conn -> outgoing_buffer.begin(), conn -> outgoing_buffer.begin() + written);
 
-    //         assert((size_t)n <= buf_size);
-    //         buf_size -= (size_t)n;
-    //         buf += (size_t)n;
-    //     }
-    //     return 0;
-    // }
+        if(conn -> outgoing_buffer.size() == 0){
+            conn -> want_read = true;
+            conn -> want_write = false;
+        }
+    }
 
     static Connection* Myaccept(int fd){
         struct sockaddr_in client_addr = {};
