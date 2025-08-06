@@ -9,25 +9,39 @@
 #include <errno.h>
 #include "readwrite.h"
 #include "error_handling.h"
+#include <iomanip>
 
-const size_t max_size = 4096;
-int32_t err;
+const size_t max_size = 4096; // 4kb's
 
+static void checkBuffer2(const char* buf, size_t buf_size) { // for debug purposes
+    for (size_t i = 0; i < buf_size; ++i) {
+        unsigned char e = static_cast<unsigned char>(buf[i]); // Avoid sign extension when printing byte values
+        std::clog << "Index: " << i 
+                  << " Value: " << static_cast<int>(e) 
+                  << " Hex: 0x" << std::hex << static_cast<int>(e)
+                  << std::dec << " Char: '"
+                  << (isprint(e) ? static_cast<char>(e) : '.') << "'"
+                  << std::endl;
+    }
+    std::clog << std::endl;
+    return;
+}
 
 static int32_t query(const int &fd, const char *message){
 
     uint32_t len = (uint32_t)strlen(message);
-    if(len > max_size) return -1;
-    char write_buf[4 + max_size];
 
     if(len > max_size) {
         errors :: msg("write() : too long message");
         return -1;
     }
+
+    char write_buf[4 + max_size];
     // creating a write byte stream msg
     memcpy(write_buf, &len, 4);
     memcpy(&write_buf[4], message, len);
 
+    int32_t err;
     // writing all
     err = ReadWrite::writefull(fd, write_buf, 4 + len);
     if(err){
@@ -38,27 +52,31 @@ static int32_t query(const int &fd, const char *message){
         errors :: msg("written");
     }
 
-    
     //reading all byte stream
     char read_buf[4 + max_size + 1];
     errno = 0;
+    len = 0;
+
     err = ReadWrite::readfull(fd, read_buf, 4); //getting length of message
-    std::cout << "Read len" << std::endl;
     if(err) {
         errors :: msg(err == 0 ? "EOF":"read() error"); 
         return err;
     }
-    
+
     std::cout << "passed" << std::endl;
     memcpy(&len, read_buf, 4);
+
+    checkBuffer2(read_buf, 4);
+
+    std::clog << len  << std::endl;
     if(len > max_size){
         errors :: msg("read() : too long message");
+        std :: clog << len << std::endl;
         return -1;
     }
-    else{
-        errors::msg("len : ");
-        std::cerr << len << std::endl;
-    }
+
+
+
     err = ReadWrite::readfull(fd, &read_buf[4], len);
     if(err) {
         errors :: msg("read() error");
@@ -88,7 +106,7 @@ int main(){
     if(err_code < 0){errors :: die("connect() error");}
     else {std::clog << "connected "<< std::endl;}
 
-    err = query(fd, "Hello1");
+    int32_t err = query(fd, "Hello1");
     if(err){
         goto DONE;
     }

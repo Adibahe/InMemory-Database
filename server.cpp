@@ -135,6 +135,7 @@ int main(){
             if(ready & POLLIN) ReadWrite::Myread(conn);
             if(ready & POLLOUT) ReadWrite::Mywrite(conn);
             if((ready & POLLERR) ||(conn -> want_close)){
+                std :: clog << "in close" << std::endl;
                 close(conn -> fd);
                 fdconns[conn -> fd] = NULL;
                 delete conn;

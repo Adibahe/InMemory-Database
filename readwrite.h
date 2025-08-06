@@ -14,22 +14,40 @@
 
 const size_t max_msg = 4096;
 
+static void checkBuffer(std::vector<uint8_t>& buf) { // for debug purposes
+    for (uint8_t e : buf) {
+        // Print the decimal value, hexadecimal value, and character representation
+        std::clog << "Value: " << static_cast<int>(e) 
+                  << " Hex: 0x" << std::hex << static_cast<int>(e) 
+                  << std::dec << " Char: '" 
+                  << (isprint(e) ? static_cast<char>(e) : '.') << "'" // Print character if printable, else '.'
+                  << std::endl;
+    }
+    std::clog << std::endl;
+    return;
+}
+
+
 static bool isItParsable(Connection *conn){
-    size_t len;
+    std :: clog << "in parsable" << std::endl;
+    uint32_t len = 0;
     if(conn -> incoming_buffer.size() < 4){
         return false; // read more from kernels buffer
     }
     memcpy(&len, conn -> incoming_buffer.data(), 4);
 
     if(len > max_msg){
+        errors :: msg("msg len too long");
         conn -> want_close = true;
         return false;
     }
 
     if(4 + len > conn -> incoming_buffer.size()) return false; // want to read more from kernel buffer
+    
+    checkBuffer(conn -> incoming_buffer);
 
     // writting the whole msg to client
-    conn -> outgoing_buffer.insert(conn -> outgoing_buffer.end(), &len, &len + 4);
+    conn -> outgoing_buffer.insert(conn -> outgoing_buffer.end(), (const uint8_t *) &len, (const uint8_t *) &len + 4);
     conn -> outgoing_buffer.insert(conn -> outgoing_buffer.end(), &conn -> incoming_buffer[4],&conn -> incoming_buffer[4] + len);
 
     conn -> incoming_buffer.erase(conn -> incoming_buffer.begin(), conn -> incoming_buffer.begin() + 4 + len);
@@ -84,8 +102,7 @@ class ReadWrite{
         // insert the r_buf in incoming_buf
         conn->incoming_buffer.insert(conn -> incoming_buffer.end(), r_buf, r_buf + size);
         isItParsable(conn);
-        std :: clog << "out of parsable" << std::endl;
-        
+
         if(conn -> outgoing_buffer.size() > 0){
             std :: clog << "changing response" << std::endl;
             conn -> want_read = false;
@@ -95,12 +112,19 @@ class ReadWrite{
 
     static void Mywrite(Connection *conn){
         // assuming the write buffer is fully empty
-        size_t written = write(conn -> fd, &conn -> outgoing_buffer, sizeof(conn -> outgoing_buffer));
+        std :: clog << "in write" << std::endl;
+        std :: clog << "outgoing buffer " << std::endl ;
+        checkBuffer(conn->outgoing_buffer);
+
+        size_t written = write(conn -> fd, conn -> outgoing_buffer.data(), conn -> outgoing_buffer.size());
+
+        if (written < 0 && errno == EAGAIN) {
+            return;
+        }
         if(written < 0) {
             conn -> want_close = true;
             return ;
         }
-
         conn -> outgoing_buffer.erase(conn -> outgoing_buffer.begin(), conn -> outgoing_buffer.begin() + written);
 
         if(conn -> outgoing_buffer.size() == 0){
